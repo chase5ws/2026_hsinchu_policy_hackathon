@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>竹路通 Demo</title>
+  <meta name="description" content="竹路通：新竹交通路況共治平台 Demo — 集體回報、AI 用公開數據驗證、議員場勘、公開追蹤">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚧</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+  <link rel="stylesheet" href="assets/roads.css">
+</head>
+<body>
+  <header class="rbar">
+    <div class="rbrand">
+      <span class="rmark" aria-hidden="true">竹</span>
+      <div>
+        <div class="rname">竹路通</div>
+        <div class="rsub">新竹交通路況共治平台</div>
+      </div>
+    </div>
+    <nav class="rnav">
+      <a href="#map-sec">路況地圖</a>
+      <a href="#report-sec">我要回報</a>
+      <a href="#how-sec">運作方式</a>
+      <a class="switch" href="index.html">← 在地口袋嚮導</a>
+    </nav>
+  </header>
+
+  <section class="hero">
+    <div class="hero-in">
+      <p class="pill">2026 新竹政策黑客松・概念 Demo</p>
+      <h1>常跑新竹道路的人回報路況，<br><span>數據驗證、公開追蹤</span>，直到改善。</h1>
+      <p class="lead">外送員、通勤族一起回報，AI 合併相同問題並用公開交通數據佐證、排優先順序，邀請議員與主管機關到場，處理進度全程公開。</p>
+      <div id="kpis" class="kpis"></div>
+    </div>
+  </section>
+
+  <div class="note">示範資料：路名為真實道路，座標概略；回報人數、事故筆數、案號與進度均為虛構。標示「改編自新聞」的案例只用來示意流程。</div>
+
+  <main class="wrap">
+    <!-- ===== 地圖 + 清單 ===== -->
+    <section id="map-sec" class="grid">
+      <div class="card map-card">
+        <div class="card-h">
+          <h2>路況地圖</h2>
+          <div id="filters" class="filters"></div>
+        </div>
+        <div id="rmap" class="rmap" role="img" aria-label="回報議題地圖"></div>
+        <div class="legend">圓點大小＝回報人數・顏色＝類型・<span class="ring-demo"></span> 已完工</div>
+      </div>
+      <div class="card list-card">
+        <div class="card-h">
+          <h2>優先處理排行</h2>
+          <select id="sortSel" aria-label="排序">
+            <option value="score">依優先分數</option>
+            <option value="reports">依回報人數</option>
+            <option value="new">依最新</option>
+          </select>
+        </div>
+        <ol id="issueList" class="issue-list"></ol>
+      </div>
+    </section>
+
+    <!-- ===== 議題詳情 ===== -->
+    <section id="detail" class="card detail" aria-live="polite"></section>
+
+    <!-- ===== 回報 ===== -->
+    <section id="report-sec" class="grid report-grid">
+      <form id="rForm" class="card rform" novalidate>
+        <h2>我要回報</h2>
+        <p class="muted">不用註冊。正式版可從 LINE 官方帳號直接傳照片與位置。</p>
+        <div class="fld">
+          <label>1. 拍照（選填，Demo 不會上傳）</label>
+          <label class="photo-drop" for="rPhoto">
+            <input id="rPhoto" type="file" accept="image/*">
+            <span id="photoTxt">📷 點這裡選一張照片</span>
+            <img id="photoPrev" alt="" hidden>
+          </label>
+          <p class="hint">正式版會自動模糊人臉與車牌。</p>
+        </div>
+        <div class="fld">
+          <label>2. 位置 *</label>
+          <div class="loc-row">
+            <button type="button" id="pickBtn" class="btn ghost">📍 在地圖上點選</button>
+            <select id="presetLoc" aria-label="常用地點">
+              <option value="">或選擇路段…</option>
+            </select>
+          </div>
+          <div id="locTxt" class="hint">尚未選擇位置</div>
+        </div>
+        <div class="fld">
+          <label for="rDesc">3. 發生什麼事？ *</label>
+          <textarea id="rDesc" rows="3" maxlength="300" placeholder="例：東大路二段外側車道有好幾個坑洞，晚上看不到，剛剛差點摔車"></textarea>
+          <div class="ex-row">試試：
+            <button type="button" class="ex">東大路二段外側車道坑洞很多，晚上看不到差點摔車</button>
+            <button type="button" class="ex">食品路口行人綠燈太短，小孩走一半就紅燈</button>
+            <button type="button" class="ex">民族路巷子路燈壞了好幾盞，晚上很暗</button>
+          </div>
+        </div>
+        <div class="fld">
+          <label>4. 你是？</label>
+          <div id="roleChips" class="chips"></div>
+        </div>
+        <div id="aiBox" class="ai-box" hidden></div>
+        <div id="rErr" class="err" role="alert"></div>
+        <div class="row-btns">
+          <button type="button" id="aiBtn" class="btn ghost">🤖 AI 分類預覽</button>
+          <button type="submit" class="btn primary">送出回報</button>
+        </div>
+      </form>
+
+      <div class="card line-card">
+        <h2>LINE Bot 對話示意</h2>
+        <div class="phone">
+          <div class="phone-top"><span>竹路通</span><span class="muted">官方帳號</span></div>
+          <div id="chat" class="chat"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 運作方式 ===== -->
+    <section id="how-sec" class="card how">
+      <h2>運作方式</h2>
+      <ol class="steps">
+        <li><b>01 集體回報</b><span>照片＋定位，LINE 或網頁都能回報；附近相同問題自動合併，按「我也遇到」累積附議。</span></li>
+        <li><b>02 AI 分類與數據驗證</b><span>LLM 歸類、摘要，比對事故資料、TDX 路況與施工資料，計算優先分數，公式公開。</span></li>
+        <li><b>03 議員與主管機關場勘</b><span>高分議題邀請該選區所有議員（不分黨派）與主管機關到場，場勘影片與承諾公開。</span></li>
+        <li><b>04 公開追蹤與通知</b><span>同步 1999／新竹通案號，進度變更即通知回報者；完工後由回報者確認是否真的改善。</span></li>
+      </ol>
+      <h3>資料來源規劃</h3>
+      <ul id="srcList" class="src"></ul>
+      <p class="muted small">與 1999、新竹通的關係：竹路通不取代既有陳情管道，而是把「一對一陳情」變成「公開、可附議、有數據」的議題，並把案件轉入既有系統處理。</p>
+    </section>
+  </main>
+
+  <footer class="rfoot">竹路通・2026 新竹政策黑客松提案 Demo。概念展示，非正式服務；回報僅存在你的瀏覽器。</footer>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <script src="assets/roads-data.js"></script>
+  <script src="assets/roads.js"></script>
+</body>
+</html>
