@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>在地口袋嚮導 Demo</title>
+  <meta name="description" content="2026 新竹政策黑客松提案 Demo：在地人推薦理由 × 個人化速配卡 × 步行行程 × 風 PASS 連結">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧭</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@600;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">🧭</span>
+      <div>
+        <div class="brand-name" data-i18n="brand">在地口袋嚮導</div>
+        <div class="brand-sub" data-i18n="tagline">新竹人的口袋名單，帶你看見更有意思的新竹</div>
+      </div>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button class="tab active" data-view="explore" role="tab" data-i18n="tabExplore">探索與行程</button>
+      <button class="tab" data-view="share" role="tab" data-i18n="tabShare">分享口袋名單</button>
+      <button class="tab" data-view="about" role="tab" data-i18n="tabAbout">關於提案</button>
+    </nav>
+    <button id="langBtn" class="lang-btn" aria-label="Switch language">EN</button>
+  </header>
+
+  <div class="demo-banner" data-i18n="banner">App 概念 Demo・示範資料：推薦人為示範角色，座標與步行時間為估算，營業時間與票價請以官方公告為準。免註冊即可瀏覽。</div>
+
+  <!-- ===== 探索與行程 ===== -->
+  <main id="view-explore" class="view active">
+    <section class="col col-left">
+      <div class="panel ask">
+        <div class="step-label"><span class="step-no">01</span><span data-i18n="s1">AI 理解需求</span></div>
+        <label for="askText" class="ask-label" data-i18n="askLabel">說說你現在的情況</label>
+        <div class="ask-row">
+          <textarea id="askText" rows="2"></textarea>
+          <button id="askBtn" class="btn btn-primary" data-i18n="askBtn">幫我配對</button>
+        </div>
+        <div class="examples">
+          <span data-i18n="tryLabel">試試：</span>
+          <button class="ex" data-ex="0"></button>
+          <button class="ex" data-ex="1"></button>
+          <button class="ex" data-ex="2"></button>
+        </div>
+        <div id="parsed" class="parsed" aria-live="polite"></div>
+        <div class="prefs">
+          <div class="pref-group"><span class="pref-name" data-i18n="pTime">時間</span><div id="pTime" class="chips"></div></div>
+          <div class="pref-group"><span class="pref-name" data-i18n="pMode">交通</span><div id="pMode" class="chips"></div></div>
+          <div class="pref-group"><span class="pref-name" data-i18n="pInterest">想要</span><div id="pInterest" class="chips"></div></div>
+          <div class="pref-group"><span class="pref-name" data-i18n="pMore">其他</span><div id="pMore" class="chips"></div></div>
+        </div>
+      </div>
+
+      <div class="panel deck-panel">
+        <div class="step-label"><span class="step-no">02</span><span data-i18n="s2">個人化速配卡</span><span id="deckCount" class="deck-count"></span></div>
+        <div id="card" class="card"></div>
+        <div class="card-actions">
+          <button id="likeBtn" class="btn btn-ghost icon-btn" aria-pressed="false"><span class="ic">♡</span><span data-i18n="like">愛心</span></button>
+          <button id="saveBtn" class="btn btn-ghost icon-btn" aria-pressed="false"><span class="ic">☆</span><span data-i18n="save">收藏</span></button>
+          <button id="nextBtn" class="btn btn-ghost icon-btn"><span class="ic">↻</span><span data-i18n="next">換一張</span></button>
+          <button id="addBtn" class="btn btn-primary icon-btn"><span class="ic">＋</span><span data-i18n="add">加入行程</span></button>
+        </div>
+      </div>
+      <div class="panel pass-panel">
+        <div class="step-label"><span class="step-no">03</span><span data-i18n="s3">連結套票優惠</span></div>
+        <div class="pass-toggle" role="radiogroup">
+          <button class="chip" data-pass="no" data-i18n="passNo">還沒有套票</button>
+          <button class="chip" data-pass="yes" data-i18n="passYes">我已持有風 PASS</button>
+        </div>
+        <div id="passBody" class="pass-body"></div>
+      </div>
+    </section>
+
+    <section class="col col-right" id="planSection">
+      <div class="panel plan-panel">
+        <div class="step-label"><span class="step-no">04</span><span data-i18n="s4">AI 安排行程</span></div>
+        <div class="plan-head">
+          <div id="planSummary" class="plan-summary"></div>
+          <div class="plan-btns">
+            <button id="autoBtn" class="btn btn-primary" data-i18n="auto">一鍵排行程</button>
+            <button id="clearBtn" class="btn btn-ghost" data-i18n="clear">清空</button>
+          </div>
+        </div>
+        <div class="budget-bar"><div id="budgetFill" class="budget-fill"></div></div>
+        <div id="map" class="map" role="img" aria-label="行程地圖"></div>
+        <ol id="timeline" class="timeline"></ol>
+        <p class="fine" data-i18n="planNote">步行時間以直線距離 × 1.35 估算；正式版將以 TDX 交通資料、營業時間與票券條件查核，資料不足時會提示。</p>
+      </div>
+
+    </section>
+
+    <button id="planFab" class="plan-fab" aria-label="Go to itinerary"></button>
+  </main>
+
+  <!-- ===== 分享口袋名單 ===== -->
+  <main id="view-share" class="view">
+    <section class="share-wrap">
+      <div class="panel share-intro">
+        <h2 data-i18n="shareTitle">每一份口袋名單，都有推薦的理由</h2>
+        <p data-i18n="shareLead">說說為什麼推薦、適合誰、什麼時候去。通過審核的分享會署名顯示，並累積貢獻徽章。</p>
+        <div id="badgeBox" class="badge-box"></div>
+        <p class="fine" data-i18n="rewardNote">規劃：優質投稿與有效更新可換合作商家點數或優惠券，獎勵須審核並設上限；經費與合作尚待洽談。愛心數作為參考，不直接決定報酬。</p>
+      </div>
+      <form id="shareForm" class="panel share-form" novalidate>
+        <div class="field">
+          <label for="fName" data-i18n="fName">地點名稱 *</label>
+          <input id="fName" required maxlength="40">
+        </div>
+        <div class="field">
+          <label for="fCat" data-i18n="fCat">類型</label>
+          <select id="fCat"></select>
+        </div>
+        <div class="field">
+          <label for="fReason" data-i18n="fReason">為什麼推薦？ *（至少 20 字）</label>
+          <textarea id="fReason" rows="3" required maxlength="300"></textarea>
+          <div class="hint"><span id="reasonCount">0</span> / 300</div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="fFor" data-i18n="fFor">適合誰</label>
+            <input id="fFor" maxlength="40">
+          </div>
+          <div class="field">
+            <label for="fWhen" data-i18n="fWhen">親訪時間 *</label>
+            <input id="fWhen" type="month" required>
+          </div>
+        </div>
+        <div class="field">
+          <label for="fTip" data-i18n="fTip">交通或注意事項</label>
+          <input id="fTip" maxlength="80">
+        </div>
+        <div class="field">
+          <label for="fBy" data-i18n="fBy">署名（暱稱）</label>
+          <input id="fBy" maxlength="20">
+        </div>
+        <div id="formErr" class="form-err" role="alert"></div>
+        <button type="submit" class="btn btn-primary" data-i18n="submit">送出審核</button>
+      </form>
+      <div class="panel my-shares">
+        <h3 data-i18n="myShares">我的分享</h3>
+        <ul id="shareList" class="share-list"></ul>
+      </div>
+    </section>
+  </main>
+
+  <!-- ===== 關於提案 ===== -->
+  <main id="view-about" class="view">
+    <section class="about-wrap">
+      <div class="panel about-hero">
+        <div class="eyebrow">2026 新竹政策黑客松提案</div>
+        <h2 data-i18n="aboutTitle">智遊風城，無界探索</h2>
+        <p data-i18n="aboutLead">免費 App 以在地推薦理由為核心，串起個人化推薦、交通、行程與旅遊優惠。</p>
+      </div>
+      <div class="stats">
+        <div class="stat"><div class="stat-num">+11.52%</div><div class="stat-cap" data-i18n="stat1">國旅旅次 2024→2025（2.22 → 2.48 億旅次）</div></div>
+        <div class="stat"><div class="stat-num">92.1%</div><div class="stat-cap" data-i18n="stat2">國旅自行規劃行程比例（2025）</div></div>
+        <div class="stat"><div class="stat-num">25,309</div><div class="stat-cap" data-i18n="stat3">2025 年底新竹市在臺外僑居留人數（非旅客數）</div></div>
+      </div>
+      <div class="panel">
+        <h3 data-i18n="roadmap">推進計畫</h3>
+        <table class="roadmap">
+          <thead><tr><th data-i18n="rh1">階段</th><th data-i18n="rh2">內容</th><th data-i18n="rh3">觀察重點</th></tr></thead>
+          <tbody>
+            <tr class="now"><td data-i18n="r1a">短期：Demo（本頁）</td><td data-i18n="r1b">展示輸入、推薦、換站、行程與套票</td><td data-i18n="r1c">核心流程是否完整呈現</td></tr>
+            <tr><td data-i18n="r2a">中期：試用</td><td data-i18n="r2b">新竹火車站周邊舊城生活圈小範圍試用</td><td data-i18n="r2c">推薦適合度、路線可行性、再次使用</td></tr>
+            <tr><td data-i18n="r3a">長期：擴大</td><td data-i18n="r3b">依回饋擴充區域、內容及語言</td><td data-i18n="r3c">有效投稿、使用回饋、維運成本</td></tr>
+          </tbody>
+        </table>
+        <p class="fine" data-i18n="aboutNote">現階段為提案，試辦範圍、經費及合作待確認，尚無實測成果。全國調查作為設計依據，非新竹專屬需求。</p>
+      </div>
+      <div class="panel">
+        <h3 data-i18n="sourcesTitle">資料來源</h3>
+        <ul id="sources" class="sources"></ul>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot" data-i18n="footer">2026 新竹政策黑客松・在地口袋嚮導提案 Demo。本頁為概念展示，非正式服務。</footer>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <script src="assets/data.js"></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>
